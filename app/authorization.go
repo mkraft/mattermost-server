@@ -19,8 +19,10 @@ func (a *App) MakePermissionError(permission *model.Permission) *model.AppError 
 func (a *App) SessionHasPermissionTo(session model.Session, permission *model.Permission) bool {
 	// return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
 	input := &policy.Input{
-		SubjectType: "user",
-		SubjectID:   session.UserId,
+		Subject: &policy.Subject{
+			Type: "user",
+			ID:   session.UserId,
+		},
 	}
 	allow, err := policy.Result(input)
 	if err != nil {
@@ -43,9 +45,13 @@ func (a *App) SessionHasPermissionToTeam(session model.Session, teamId string, p
 
 	// return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
 	input := &policy.Input{
-		SubjectType:    "user",
-		SubjectID:      session.UserId,
-		ResourceTeamID: teamId,
+		Subject: &policy.Subject{
+			Type: "user",
+			ID:   session.UserId,
+		},
+		Resource: &policy.Resource{
+			TeamID: teamId,
+		},
 	}
 	allow, err := policy.Result(input)
 	if err != nil {
@@ -82,9 +88,13 @@ func (a *App) SessionHasPermissionToChannel(session model.Session, channelId str
 
 	// return a.SessionHasPermissionTo(session, permission)
 	input := &policy.Input{
-		SubjectType:       "user",
-		SubjectID:         session.UserId,
-		ResourceChannelID: channelId,
+		Subject: &policy.Subject{
+			Type: "user",
+			ID:   session.UserId,
+		},
+		Resource: &policy.Resource{
+			ChannelID: channelId,
+		},
 	}
 	allow, err := policy.Result(input)
 	if err != nil {

@@ -7,13 +7,21 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 )
 
+type Subject struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
+type Resource struct {
+	Name      string `json:"name"`
+	TeamID    string `json:"team_id"`
+	ChannelID string `json:"channel_id"`
+}
+
 type Input struct {
-	Resource          string `json:"resource"`     // post, channel, channel name, etc...
-	SubjectType       string `json:"subject_type"` // user, bot, etc...
-	SubjectID         string `json:"subject_id"`
-	Action            string `json:"action"` // crud
-	ResourceTeamID    string `json:"resource_team_id"`
-	ResourceChannelID string `json:"resource_channel_id"`
+	Resource *Resource `json:"resource"` // post, channel, channel name, etc...
+	Subject  *Subject  `json:"subject"`
+	Action   string    `json:"action"` // crud
 }
 
 func Result(input *Input) (bool, error) {
