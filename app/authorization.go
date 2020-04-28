@@ -9,6 +9,7 @@ import (
 
 	"github.com/mattermost/mattermost-server/v5/mlog"
 	"github.com/mattermost/mattermost-server/v5/model"
+	"github.com/mattermost/mattermost-server/v5/policy"
 )
 
 func (a *App) MakePermissionError(permission *model.Permission) *model.AppError {
@@ -16,7 +17,16 @@ func (a *App) MakePermissionError(permission *model.Permission) *model.AppError 
 }
 
 func (a *App) SessionHasPermissionTo(session model.Session, permission *model.Permission) bool {
-	return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
+	// return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
+	input := &policy.Input{
+		SubjectType: "user",
+		SubjectID:   session.UserId,
+	}
+	allow, err := policy.Result(input)
+	if err != nil {
+		mlog.Error(err.Error())
+	}
+	return allow
 }
 
 func (a *App) SessionHasPermissionToTeam(session model.Session, teamId string, permission *model.Permission) bool {
@@ -24,14 +34,24 @@ func (a *App) SessionHasPermissionToTeam(session model.Session, teamId string, p
 		return false
 	}
 
-	teamMember := session.GetTeamByTeamId(teamId)
-	if teamMember != nil {
-		if a.RolesGrantPermission(teamMember.GetRoles(), permission.Id) {
-			return true
-		}
-	}
+	// teamMember := session.GetTeamByTeamId(teamId)
+	// if teamMember != nil {
+	// 	if a.RolesGrantPermission(teamMember.GetRoles(), permission.Id) {
+	// 		return true
+	// 	}
+	// }
 
-	return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
+	// return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
+	input := &policy.Input{
+		SubjectType:    "user",
+		SubjectID:      session.UserId,
+		ResourceTeamID: teamId,
+	}
+	allow, err := policy.Result(input)
+	if err != nil {
+		mlog.Error(err.Error())
+	}
+	return allow
 }
 
 func (a *App) SessionHasPermissionToChannel(session model.Session, channelId string, permission *model.Permission) bool {
@@ -39,28 +59,38 @@ func (a *App) SessionHasPermissionToChannel(session model.Session, channelId str
 		return false
 	}
 
-	ids, err := a.Srv().Store.Channel().GetAllChannelMembersForUser(session.UserId, true, true)
+	// ids, err := a.Srv().Store.Channel().GetAllChannelMembersForUser(session.UserId, true, true)
 
-	var channelRoles []string
-	if err == nil {
-		if roles, ok := ids[channelId]; ok {
-			channelRoles = strings.Fields(roles)
-			if a.RolesGrantPermission(channelRoles, permission.Id) {
-				return true
-			}
-		}
+	// var channelRoles []string
+	// if err == nil {
+	// 	if roles, ok := ids[channelId]; ok {
+	// 		channelRoles = strings.Fields(roles)
+	// 		if a.RolesGrantPermission(channelRoles, permission.Id) {
+	// 			return true
+	// 		}
+	// 	}
+	// }
+
+	// channel, err := a.GetChannel(channelId)
+	// if err == nil && channel.TeamId != "" {
+	// 	return a.SessionHasPermissionToTeam(session, channel.TeamId, permission)
+	// }
+
+	// if err != nil && err.StatusCode == http.StatusNotFound {
+	// 	return false
+	// }
+
+	// return a.SessionHasPermissionTo(session, permission)
+	input := &policy.Input{
+		SubjectType:       "user",
+		SubjectID:         session.UserId,
+		ResourceChannelID: channelId,
 	}
-
-	channel, err := a.GetChannel(channelId)
-	if err == nil && channel.TeamId != "" {
-		return a.SessionHasPermissionToTeam(session, channel.TeamId, permission)
+	allow, err := policy.Result(input)
+	if err != nil {
+		mlog.Error(err.Error())
 	}
-
-	if err != nil && err.StatusCode == http.StatusNotFound {
-		return false
-	}
-
-	return a.SessionHasPermissionTo(session, permission)
+	return allow
 }
 
 func (a *App) SessionHasPermissionToChannelByPost(session model.Session, postId string, permission *model.Permission) bool {
