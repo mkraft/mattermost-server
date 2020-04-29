@@ -11,6 +11,7 @@ import (
 
 	"github.com/mattermost/mattermost-server/v5/app"
 	"github.com/mattermost/mattermost-server/v5/audit"
+	"github.com/mattermost/mattermost-server/v5/authz"
 	"github.com/mattermost/mattermost-server/v5/mlog"
 	"github.com/mattermost/mattermost-server/v5/model"
 )
@@ -48,18 +49,41 @@ func createPost(c *Context, w http.ResponseWriter, r *http.Request) {
 	defer c.LogAuditRecWithLevel(auditRec, app.RestContentLevel)
 	auditRec.AddMeta("post", post)
 
-	hasPermission := false
-	if c.App.SessionHasPermissionToChannel(*c.App.Session(), post.ChannelId, model.PERMISSION_CREATE_POST) {
-		hasPermission = true
-	} else if channel, err := c.App.GetChannel(post.ChannelId); err == nil {
-		// Temporary permission check method until advanced permissions, please do not copy
-		if channel.Type == model.CHANNEL_OPEN && c.App.SessionHasPermissionToTeam(*c.App.Session(), channel.TeamId, model.PERMISSION_CREATE_POST_PUBLIC) {
-			hasPermission = true
-		}
+	userID := c.App.Session().UserId
+	channelMember, err := c.App.GetChannelMember(post.ChannelId, userID)
+	if err != nil {
+		c.Err = err
+		return
+	}
+	var role string
+	if channelMember.SchemeAdmin {
+		role = "admin"
+	} else if channelMember.SchemeUser {
+		role = "user"
+	} else {
+		role = "guest"
 	}
 
-	if !hasPermission {
-		c.SetPermissionError(model.PERMISSION_CREATE_POST)
+	input := &authz.Input{
+		Subject: &authz.Subject{
+			Type:       authz.Person,
+			ID:         userID,
+			Attributes: map[string]interface{}{"channel_role": role},
+		},
+		Operation: authz.Write,
+		Resource: &authz.Resource{
+			Type:       authz.Post,
+			Attributes: map[string]interface{}{"channel_id": post.ChannelId},
+		},
+	}
+	granted, perr := authz.Granted(input)
+	if perr != nil {
+		c.Err = model.NewAppError("api4.createPost", "", nil, perr.Error(), http.StatusForbidden)
+		return
+	}
+
+	if !granted {
+		c.SetPolicyError(input)
 		return
 	}
 

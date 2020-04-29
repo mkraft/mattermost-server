@@ -11,6 +11,7 @@ import (
 
 	"github.com/mattermost/mattermost-server/v5/app"
 	"github.com/mattermost/mattermost-server/v5/audit"
+	"github.com/mattermost/mattermost-server/v5/authz"
 	"github.com/mattermost/mattermost-server/v5/mlog"
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/utils"
@@ -247,6 +248,10 @@ func NewServerBusyError() *model.AppError {
 
 func (c *Context) SetPermissionError(permission *model.Permission) {
 	c.Err = c.App.MakePermissionError(permission)
+}
+
+func (c *Context) SetPolicyError(input *authz.Input) {
+	c.Err = authz.MakePolicyError(input)
 }
 
 func (c *Context) SetSiteURLHeader(url string) {
